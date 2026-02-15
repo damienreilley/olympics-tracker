@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 Winter Olympics Bet Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+--bg:#e8ecf1;--card-hockey:#dbeafe;--card-medal:#fef3c7;--card-settled:#f1f5f9;
+--card-won:#d1fae5;--card-lost:#fee2e2;--card-live:#dbeafe;
+--border:#cbd5e1;--border-hockey:#93c5fd;--border-medal:#fcd34d;
+--win:#059669;--lose:#dc2626;--pending:#4f46e5;--live:#ea580c;
+--text:#1e293b;--text2:#475569;--text3:#94a3b8;
+--gold:#d97706;--blue:#2563eb;--accent:#7c3aed;
+--header-bg:#1e3a5f;
+}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
+.app{max-width:1100px;margin:0 auto;padding:0 12px 40px}
+
+/* HEADER */
+.header{background:var(--header-bg);color:#fff;padding:20px;border-radius:0 0 16px 16px;text-align:center;margin:0 -12px 16px;position:sticky;top:0;z-index:100}
+.header h1{font-family:'Oswald',sans-serif;font-size:1.8em;font-weight:700;letter-spacing:3px}
+.rings{display:flex;gap:5px;justify-content:center;margin-top:6px}
+.rings span{width:14px;height:14px;border-radius:50%;border:2.5px solid}
+.rings span:nth-child(1){border-color:#0081C8}.rings span:nth-child(2){border-color:#FCB131}
+.rings span:nth-child(3){border-color:#ccc}.rings span:nth-child(4){border-color:#00A651}
+.rings span:nth-child(5){border-color:#EE334E}
+.header-controls{display:flex;gap:8px;margin-top:10px;justify-content:center;flex-wrap:wrap;align-items:center}
+.search-box{padding:6px 12px;border-radius:8px;border:1px solid #3b5998;background:#1a2d4a;color:#fff;font-size:.8em;width:220px;font-family:'DM Sans',sans-serif}
+.search-box::placeholder{color:#8aa4c8}
+.search-box:focus{outline:none;border-color:#60a5fa}
+.home-btn,.refresh-btn,.add-btn{padding:6px 14px;border-radius:8px;border:1px solid;cursor:pointer;font-family:'Oswald',sans-serif;font-size:.8em;letter-spacing:1px;transition:all .2s}
+.home-btn{border-color:#60a5fa;background:transparent;color:#60a5fa}
+.home-btn:hover{background:#60a5fa;color:#fff}
+.refresh-btn{border-color:#fbbf24;background:transparent;color:#fbbf24}
+.refresh-btn:hover{background:#fbbf24;color:#1e3a5f}
+.refresh-btn.loading{opacity:.6;pointer-events:none}
+.add-btn{border-color:#34d399;background:transparent;color:#34d399}
+.add-btn:hover{background:#34d399;color:#1e3a5f}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;animation:spin 1s linear infinite}
+
+/* SUMMARY */
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px}
+.stat-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.stat-card .val{font-family:'Oswald',sans-serif;font-size:1.5em;font-weight:600}
+.stat-card .lbl{font-size:.65em;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.v-green{color:var(--win)}.v-red{color:var(--lose)}.v-gold{color:var(--gold)}.v-blue{color:var(--pending)}.v-live{color:var(--live)}
+
+/* FILTER & SORT BAR */
+.toolbar{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center;background:#fff;padding:10px;border-radius:10px;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.filter-tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:#f8fafc;color:var(--text2);cursor:pointer;font-size:.75em;font-family:'DM Sans',sans-serif;transition:all .15s;font-weight:500}
+.tab-btn:hover{border-color:var(--blue);color:var(--blue)}
+.tab-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.sort-select{margin-left:auto;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:#f8fafc;color:var(--text);font-size:.75em;font-family:'DM Sans',sans-serif;cursor:pointer}
+
+/* BET CARDS */
+.bets-grid{display:flex;flex-direction:column;gap:8px}
+
+.bet-card{border-radius:10px;overflow:hidden;transition:all .15s;border:1px solid}
+.bet-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.bet-card.type-hockey{background:var(--card-hockey);border-color:var(--border-hockey)}
+.bet-card.type-medal{background:var(--card-medal);border-color:var(--border-medal)}
+.bet-card.status-lost{background:var(--card-lost);border-color:#fca5a5}
+.bet-card.status-won{background:var(--card-won);border-color:#6ee7b7}
+
+.bet-header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;cursor:pointer;gap:10px}
+.bet-header:hover{opacity:.9}
+.bet-left{flex:1;min-width:0}
+.bet-title{font-family:'Oswald',sans-serif;font-size:.95em;font-weight:500;color:var(--text)}
+.bet-meta{display:flex;gap:8px;margin-top:4px;font-size:.72em;color:var(--text2);flex-wrap:wrap;align-items:center}
+.bet-right{text-align:right;flex-shrink:0}
+.bet-odds{font-family:'Oswald',sans-serif;font-size:1.1em;font-weight:700;color:var(--gold)}
+.bet-payout{font-size:.72em;color:var(--text2);margin-top:2px}
+
+/* PROGRESS RING (SVG) */
+.progress-ring{width:36px;height:36px;flex-shrink:0;margin-right:10px}
+.progress-ring circle{fill:none;stroke-width:3;stroke-linecap:round}
+.ring-bg{stroke:#e2e8f0}.ring-fill{stroke:var(--blue);transition:stroke-dashoffset .3s}
+.ring-text{font-family:'Oswald',sans-serif;font-size:9px;fill:var(--text);text-anchor:middle;dominant-baseline:central}
+
+/* STATUS BADGES */
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:.65em;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.badge-won{background:#065f46;color:#a7f3d0}.badge-lost{background:#991b1b;color:#fecaca}
+.badge-live{background:#c2410c;color:#fed7aa;animation:pulse 2s infinite}.badge-pending{background:#3730a3;color:#c7d2fe}
+.badge-settled{background:#57534e;color:#d6d3d1}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+
+/* EXPANDED DETAIL */
+.bet-detail{display:none;padding:0 14px 14px}
+.bet-card.expanded .bet-detail{display:block}
+
+/* LEGS TABLE */
+.legs-list{margin-top:8px}
+.leg-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:6px;margin-bottom:4px;font-size:.82em;background:rgba(255,255,255,.6);border:1px solid rgba(0,0,0,.06)}
+.leg-name{flex:1;font-weight:500;color:var(--text)}
+.leg-status-text{font-weight:700;font-size:.8em;min-width:70px;text-align:right}
+.ls-hit{color:var(--win)}.ls-miss{color:var(--lose)}.ls-live{color:var(--live)}.ls-pending{color:var(--text3)}
+.leg-progress-bar{width:60px;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;margin-left:8px}
+.leg-progress-fill{height:100%;border-radius:3px;transition:width .3s}
+.fill-hit{background:var(--win)}.fill-live{background:var(--live)}.fill-cold{background:var(--lose)}.fill-pending{background:var(--text3)}
+
+/* GAME SCORE WIDGET */
+.game-score{background:#fff;border-radius:8px;padding:10px;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:16px;border:1px solid var(--border)}
+.team-score{text-align:center}
+.team-score .name{font-family:'Oswald',sans-serif;font-size:.8em;color:var(--text2);letter-spacing:1px}
+.team-score .score{font-family:'Oswald',sans-serif;font-size:2em;font-weight:700;color:var(--text)}
+.game-info{text-align:center}
+.game-status-text{font-size:.75em;font-weight:700;color:var(--live)}
+.game-clock{font-size:.65em;color:var(--text3)}
+
+/* SECTION HEADERS */
+.section-header{font-family:'Oswald',sans-serif;font-size:1em;color:var(--text2);padding:10px 0 6px;display:flex;align-items:center;gap:8px;border-bottom:2px solid var(--border);margin-bottom:8px;margin-top:16px}
+
+/* ADD BET MODAL */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:200;justify-content:center;align-items:center}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:14px;padding:24px;width:90%;max-width:500px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal h2{font-family:'Oswald',sans-serif;margin-bottom:16px;color:var(--text)}
+.modal label{display:block;font-size:.8em;font-weight:600;color:var(--text2);margin:10px 0 4px}
+.modal input,.modal select,.modal textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:.85em}
+.modal textarea{height:60px;resize:vertical}
+.modal-btns{display:flex;gap:8px;margin-top:16px}
+.modal-btns button{flex:1;padding:10px;border-radius:8px;border:none;font-family:'Oswald',sans-serif;font-size:.9em;cursor:pointer;letter-spacing:1px}
+.btn-save{background:var(--blue);color:#fff}.btn-cancel{background:#f1f5f9;color:var(--text)}
+
+/* LAST UPDATED */
+.last-updated{text-align:center;color:var(--text3);font-size:.72em;margin-top:16px}
+
+/* MOBILE */
+@media(max-width:600px){
+.header h1{font-size:1.4em}
+.summary{grid-template-columns:repeat(3,1fr)}
+.search-box{width:160px}
+.toolbar{padding:8px}
+.bet-title{font-size:.85em}
+.header-controls{gap:5px}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+<!-- HEADER (sticky) -->
+<div class="header">
+  <h1>MILANO CORTINA 2026</h1>
+  <div class="rings"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="header-controls">
+    <input type="text" class="search-box" id="searchBox" placeholder="🔍 Search player, event, prop..." oninput="applyFilters()">
+    <button class="home-btn" onclick="resetAll()">🏠 HOME</button>
+    <button class="refresh-btn" id="refreshBtn" onclick="refreshData()"><span id="refreshIcon">↻</span> REFRESH</button>
+    <button class="add-btn" onclick="showAddModal()">+ ADD BET</button>
+  </div>
+</div>
+
+<!-- SUMMARY -->
+<div class="summary" id="summary"></div>
+
+<!-- TOOLBAR: filters + sort -->
+<div class="toolbar">
+  <div class="filter-tabs" id="filterTabs">
+    <button class="tab-btn active" data-filter="all">All</button>
+    <button class="tab-btn" data-filter="hockey">🏒 Hockey</button>
+    <button class="tab-btn" data-filter="medal">🏅 Futures</button>
+    <button class="tab-btn" data-filter="active">⚡ Live/Active</button>
+    <button class="tab-btn" data-filter="pending">📅 Pending</button>
+    <button class="tab-btn" data-filter="settled">📋 Settled</button>
+    <button class="tab-btn" data-filter="won">✅ Won</button>
+    <button class="tab-btn" data-filter="lost">❌ Lost</button>
+  </div>
+  <select class="sort-select" id="sortSelect" onchange="applyFilters()">
+    <option value="status">Sort: Status</option>
+    <option value="payout-desc">Payout ↓</option>
+    <option value="payout-asc">Payout ↑</option>
+    <option value="odds-desc">Odds ↓</option>
+    <option value="odds-asc">Odds ↑</option>
+    <option value="wager-desc">Wager ↓</option>
+    <option value="legs-desc">Legs Hit ↓</option>
+    <option value="legs-pct">Legs % ↓</option>
+  </select>
+</div>
+
+<!-- EXPAND/COLLAPSE ALL -->
+<div style="display:flex;gap:8px;margin-bottom:10px">
+  <button onclick="expandAll()" style="padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;font-size:.72em;font-family:'DM Sans'">Expand All</button>
+  <button onclick="collapseAll()" style="padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;font-size:.72em;font-family:'DM Sans'">Collapse All</button>
+  <span id="betCount" style="margin-left:auto;font-size:.75em;color:var(--text2);align-self:center"></span>
+</div>
+
+<!-- BET GRID -->
+<div class="bets-grid" id="betsGrid"></div>
+<div class="last-updated" id="lastUpdated"></div>
+</div>
+
+<!-- ADD BET MODAL -->
+<div class="modal-overlay" id="addModal">
+<div class="modal">
+  <h2>ADD NEW BET</h2>
+  <label>Event</label>
+  <input id="newEvent" placeholder="e.g. Germany @ USA, Women's Slalom">
+  <label>Type</label>
+  <select id="newType"><option value="hockey">Hockey</option><option value="medal">Medal/Futures</option></select>
+  <label>Market</label>
+  <input id="newMarket" placeholder="e.g. SGP, 60 Min Correct Score, Gold Medal Winner">
+  <label>Pick</label>
+  <input id="newPick" placeholder="e.g. USA 6-2, Martina Peterlini (ITA)">
+  <label>Odds</label>
+  <input id="newOdds" placeholder="e.g. +1700">
+  <label>Wager</label>
+  <input id="newWager" placeholder="e.g. 0.10" value="0.10">
+  <label>Legs (one per line, leave blank for single bets)</label>
+  <textarea id="newLegs" placeholder="Leg 1&#10;Leg 2&#10;Leg 3"></textarea>
+  <label>Event Date (for futures)</label>
+  <input id="newDate" placeholder="e.g. Tue 11:00am ET">
+  <div class="modal-btns">
+    <button class="btn-cancel" onclick="hideAddModal()">CANCEL</button>
+    <button class="btn-save" onclick="saveBet()">SAVE BET</button>
+  </div>
+</div>
+</div>
+
+<script>
+// ===== BET DATA =====
+let BETS = [
+// SETTLED - HOCKEY (France @ Canada, Final: CAN 10-2 FRA)
+{id:"s01",type:"hockey",status:"lost",event:"France @ Canada",market:"60 Min Correct Score",pick:"Canada 6-0",odds:"+1200",wager:0.10,payout:0,result:"CAN 10–2 FRA",gameId:"401845675"},
+{id:"s02",type:"hockey",status:"lost",event:"France @ Canada",market:"60 Min Correct Score",pick:"Canada 7-1",odds:"+1700",wager:0.10,payout:0,result:"CAN 10–2 FRA",gameId:"401845675"},
+{id:"s03",type:"hockey",status:"lost",event:"France @ Canada",market:"60 Min Correct Score",pick:"France 4-2",odds:"+40000",wager:0.10,payout:0,result:"CAN 10–2 FRA",gameId:"401845675"},
+{id:"s04",type:"hockey",status:"lost",event:"France @ Canada",market:"SGP",pick:"OT Yes + France ML",odds:"+8323",wager:0.10,payout:0,result:"CAN 10–2 FRA",legs:["Yes OT","France ML"],gameId:"401845675"},
+{id:"s05",type:"hockey",status:"lost",event:"France @ Canada",market:"SGP",pick:"OT Yes + France ML + Under 6.5",odds:"+7970",wager:0.10,payout:0,result:"CAN 10–2 FRA",legs:["Yes OT","France ML","Under 6.5 Goals"],gameId:"401845675"},
+// Denmark @ USA (Final: USA 6-3 DEN)
+{id:"s06",type:"hockey",status:"lost",event:"Denmark @ USA",market:"Correct Score",pick:"USA 5-0",odds:"+1600",wager:0.10,payout:0,result:"USA 6–3 DEN",gameId:"401845676"},
+{id:"s07",type:"hockey",status:"lost",event:"Denmark @ USA",market:"Correct Score",pick:"USA 6-0",odds:"+1800",wager:0.10,payout:0,result:"USA 6–3 DEN",gameId:"401845676"},
+{id:"s08",type:"hockey",status:"lost",event:"Denmark @ USA",market:"Correct Score",pick:"USA 7-0",odds:"+2500",wager:0.10,payout:0,result:"USA 6–3 DEN",gameId:"401845676"},
+{id:"s09",type:"hockey",status:"lost",event:"Denmark @ USA",market:"60 Min Correct Score",pick:"Tie 5-5",odds:"+17500",wager:0.10,payout:0,result:"USA 6–3 DEN",gameId:"401845676"},
+{id:"s10",type:"hockey",status:"lost",event:"Denmark @ USA",market:"60 Min Correct Score",pick:"USA 5-4",odds:"+12500",wager:0.10,payout:0,result:"USA 6–3 DEN",gameId:"401845676"},
+{id:"s11",type:"hockey",status:"lost",event:"Denmark @ USA",market:"60 Min Correct Score",pick:"Denmark 6-3",odds:"+40000",wager:0.10,payout:0,result:"USA 6–3 DEN",gameId:"401845676"},
+{id:"s12",type:"hockey",status:"lost",event:"Denmark @ USA",market:"60 Min Correct Score",pick:"USA 7-5",odds:"+30000",wager:0.10,payout:0,result:"USA 6–3 DEN",gameId:"401845676"},
+{id:"s13",type:"hockey",status:"lost",event:"Denmark @ USA",market:"60 Min Correct Score",pick:"USA 6-4",odds:"+10000",wager:0.10,payout:0,result:"USA 6–3 DEN",gameId:"401845676"},
+{id:"s14",type:"hockey",status:"lost",event:"Denmark @ USA",market:"SGP",pick:"OT Yes + Denmark ML",odds:"+2345",wager:0.10,payout:0,result:"USA 6–3 DEN",legs:["Yes OT","Denmark ML"],gameId:"401845676"},
+// Other settled hockey
+{id:"s15",type:"hockey",status:"lost",event:"Italy @ Finland",market:"SGP",pick:"OT Yes + Italy ML",odds:"+3253",wager:0.10,payout:0,result:"Settled",legs:["Yes OT","Italy ML"]},
+{id:"s16",type:"hockey",status:"lost",event:"Germany(W) @ Canada(W)",market:"SGP",pick:"OT+Germany W ML+Poulin Goal",odds:"+15385",wager:0.10,payout:0,result:"Settled",legs:["Yes OT","Germany(W) ML","Poulin ATGS"]},
+{id:"s17",type:"hockey",status:"lost",event:"Italy @ Finland",market:"SGP",pick:"OT+Italy ML+No 1st 10min Goal",odds:"+6079",wager:0.10,payout:0,result:"Settled",legs:["Yes OT","Italy ML","No 1P Goal 1st 10min"]},
+// Settled medal
+{id:"s18",type:"medal",status:"lost",event:"Multi-Sport Parlay",market:"3 Leg Parlay",pick:"Silvestro+Baumgartner+Jackson",odds:"+23462200",wager:0.10,payout:0,result:"Jackson DNM",legs:["Silvestro Monobob Gold","Baumgartner 2-Man Bob Gold","Erin Jackson 500m Gold"]},
+{id:"s19",type:"medal",status:"lost",event:"Women's Giant Slalom",market:"Medal",pick:"Sofia Goggia (ITA)",odds:"+2500",wager:0.10,payout:0,result:"Brignone won; Goggia DNM"},
+{id:"s20",type:"medal",status:"lost",event:"Women's Giant Slalom",market:"Gold",pick:"Lara Della Mea (ITA)",odds:"+8000",wager:0.10,payout:0,result:"Brignone (ITA) won gold"},
+{id:"s21",type:"medal",status:"lost",event:"Men's 12.5km Pursuit",market:"Gold",pick:"Lukas Hofer (ITA)",odds:"+10000",wager:0.10,payout:0,result:"Settled"},
+{id:"s22",type:"medal",status:"lost",event:"Men's 12.5km Pursuit",market:"Gold",pick:"Campbell Wright (USA)",odds:"+10000",wager:0.10,payout:0,result:"Settled"},
+// Latvia @ Denmark (Final: DEN 4-2 LAT)
+{id:"s23",type:"hockey",status:"lost",event:"Latvia @ Denmark",market:"60 Min Correct Score",pick:"Latvia 4-3",odds:"+2200",wager:0.22,payout:0,result:"DEN 4–2 LAT",gameId:"401845678"},
+{id:"s24",type:"hockey",status:"lost",event:"Latvia @ Denmark",market:"60 Min Correct Score",pick:"Denmark 4-3",odds:"+1200",wager:0.20,payout:0,result:"DEN 4–2 LAT",gameId:"401845678"},
+{id:"s25",type:"hockey",status:"lost",event:"Latvia @ Denmark",market:"SGP",pick:"Olesen 2+ Goals+Vilmanis ATGS",odds:"+12341",wager:0.10,payout:0,result:"DEN 4–2 LAT",legs:["Nick Olesen 2+ Goals","Sandis Vilmanis ATGS"],gameId:"401845678"},
+{id:"s26",type:"hockey",status:"lost",event:"Latvia @ Denmark",market:"SGP",pick:"Molgaard+Eller+Vilmanis ATGS",odds:"+41738",wager:0.10,payout:0,result:"DEN 4–2 LAT",legs:["Molgaard ATGS","Lars Eller ATGS","Vilmanis ATGS"],gameId:"401845678"},
+{id:"s27",type:"hockey",status:"lost",event:"Latvia @ Denmark",market:"SGP",pick:"Tralmaks 2+ Goals+Eller ATGS",odds:"+8084",wager:0.10,payout:0,result:"DEN 4–2 LAT",legs:["Tralmaks 2+ Goals","Lars Eller ATGS"],gameId:"401845678"},
+{id:"s28",type:"hockey",status:"lost",event:"Latvia @ Denmark",market:"SGP",pick:"Tralmaks+Eller+Ehlers+Girgensons",odds:"+34108",wager:0.10,payout:0,result:"DEN 4–2 LAT",legs:["Tralmaks ATGS","Eller ATGS","Ehlers 2+ Goals","Girgensons ATGS"],gameId:"401845678"},
+{id:"s29",type:"hockey",status:"lost",event:"Latvia @ Denmark",market:"SGP",pick:"Aagaard 2++Tralmaks+Olesen 2+",odds:"+27427",wager:0.10,payout:0,result:"DEN 4–2 LAT",legs:["Aagaard 2+ Goals","Tralmaks ATGS","Olesen 2+ Goals"],gameId:"401845678"},
+{id:"s30",type:"hockey",status:"lost",event:"Latvia @ Denmark",market:"SGP",pick:"Latvia ML+Tie 3-Way+Over 9.5",odds:"+4252",wager:0.10,payout:0,result:"DEN 4–2 LAT",legs:["Latvia ML","Tie 60min 3-Way","Over 9.5 Alt Goals"],gameId:"401845678"},
+{id:"s31",type:"hockey",status:"lost",event:"Latvia @ Denmark",market:"Correct Score",pick:"Denmark 7-3",odds:"+3500",wager:0.15,payout:0,result:"DEN 4–2 LAT",gameId:"401845678"},
+{id:"s32",type:"hockey",status:"lost",event:"Latvia @ Denmark",market:"60 Min Correct Score",pick:"Any Other Score",odds:"+2500",wager:0.50,payout:0,result:"DEN 4–2 LAT",gameId:"401845678"},
+
+// ACTIVE - Germany @ USA (Game ID: 401845680)
+{id:"a01",type:"hockey",status:"active",event:"Germany @ USA",market:"SGP",pick:"None 1st Goal + Germany ML",odds:"+26146",wager:0.10,payout:26.25,gameId:"401845680",legs:["None 60min 1st Goal","Germany ML"]},
+{id:"a02",type:"hockey",status:"active",event:"Germany @ USA",market:"SGP",pick:"Matthews 2P SOG+ATGS+Tiffels 2P Goal",odds:"+7735",wager:0.10,payout:7.84,gameId:"401845680",legs:["Matthews 2P 2+ SOG","Matthews ATGS","Tiffels 2P Goal"]},
+{id:"a03",type:"hockey",status:"active",event:"Germany @ USA",market:"SGP (8 legs)",pick:"B.Tkachuk 3+ Pts+M.Tkachuk 2+ Pts+more",odds:"+27423",wager:0.10,payout:27.52,gameId:"401845680",legs:["B.Tkachuk 3+ Points","M.Tkachuk 2+ Points","M.Tkachuk 1st Goal","Peterka 2+ SOG","Hughes 2+ SOG","Eichel 4+ SOG","Matthews 3+ SOG","B.Tkachuk 3+ SOG"]},
+{id:"a04",type:"hockey",status:"active",event:"Germany @ USA",market:"SGP",pick:"B.Tkachuk 3+ Goals+M.Tkachuk 3+ Pts",odds:"+11822",wager:0.10,payout:11.92,gameId:"401845680",legs:["B.Tkachuk 3+ Goals","M.Tkachuk 3+ Points"]},
+{id:"a05",type:"hockey",status:"active",event:"Germany @ USA",market:"SGP",pick:"M.Tkachuk 1st Goal+B.Tkachuk ATGS",odds:"+2184",wager:0.10,payout:2.28,gameId:"401845680",legs:["M.Tkachuk 1st Goal","B.Tkachuk ATGS"]},
+{id:"a06",type:"hockey",status:"active",event:"Germany @ USA",market:"SGP",pick:"B.Tkachuk 1st Goal+M.Tkachuk 2+ Goals",odds:"+10697",wager:0.10,payout:10.80,gameId:"401845680",legs:["B.Tkachuk 1st Goal","M.Tkachuk 2+ Goals"]},
+{id:"a07",type:"hockey",status:"active",event:"Germany @ USA",market:"SGP (15 legs)",pick:"Points & SOG Mega Parlay",odds:"+13526",wager:0.10,payout:13.63,gameId:"401845680",legs:["B.Tkachuk 1+ Pts","Boldy 1P 1+ SOG","Boldy 3P 1+ SOG","M.Tkachuk 2P 1+ SOG","Werenski 2P 1+ SOG","Eichel 2P 2+ SOG","Eichel 2+ Pts","Matthews 1+ Pts","Draisaitl 1+ Pts","Guentzel 3P 1+ SOG","Boldy 2P 1+ SOG","M.Tkachuk 3P 1+ SOG","B.Tkachuk 3P 1+ SOG","M.Tkachuk 1P 1+ SOG","M.Tkachuk 2+ Pts"]},
+{id:"a08",type:"hockey",status:"active",event:"Germany @ USA",market:"SGP (10 legs)",pick:"Matthews+SOG+Eichel+Guentzel",odds:"+24973",wager:0.10,payout:25.07,gameId:"401845680",legs:["Matthews 1P 2+ SOG","M.Tkachuk 2P 1+ SOG","Peterka 2P 1+ SOG","Peterka 3P 1+ SOG","Draisaitl 3P 1+ SOG","Werenski 2P 2+ SOG","B.Tkachuk 2P 1+ SOG","Eichel ATGS","Draisaitl 1+ Pts","Guentzel 2+ Pts"]},
+{id:"a09",type:"hockey",status:"active",event:"Germany @ USA",market:"60 Min Correct Score",pick:"USA 7-1",odds:"+3000",wager:0.10,payout:3.10,gameId:"401845680"},
+{id:"a10",type:"hockey",status:"active",event:"Germany @ USA",market:"60 Min Correct Score",pick:"USA 6-2",odds:"+1700",wager:0.10,payout:1.80,gameId:"401845680"},
+{id:"a11",type:"hockey",status:"active",event:"Germany @ USA",market:"60 Min Correct Score",pick:"USA 6-0",odds:"+3500",wager:0.10,payout:3.60,gameId:"401845680"},
+{id:"a12",type:"hockey",status:"active",event:"Germany @ USA",market:"60 Min Correct Score",pick:"USA 6-5",odds:"+40000",wager:0.10,payout:40.10,gameId:"401845680"},
+{id:"a13",type:"hockey",status:"active",event:"Germany @ USA",market:"60 Min Correct Score",pick:"USA 7-0",odds:"+4000",wager:0.10,payout:4.10,gameId:"401845680"},
+{id:"a14",type:"hockey",status:"active",event:"Germany @ USA",market:"SGP",pick:"Reichel ATGS+Reichel/Peterka/Seider 3P SOG",odds:"+13168",wager:0.10,payout:13.27,gameId:"401845680",legs:["Reichel ATGS","Reichel 3P 2+ SOG","Peterka 3P 2+ SOG","Seider 3P 3+ SOG"]},
+{id:"a15",type:"hockey",status:"active",event:"Germany @ USA",market:"SGP (6 legs)",pick:"Seider+Boldy+M.Tkachuk+more 3P SOG",odds:"+8456",wager:0.10,payout:8.56,gameId:"401845680",legs:["Seider 3P 2+ SOG","Boldy 3P 2+ SOG","M.Tkachuk ATGS","B.Tkachuk 3P 2+ SOG","Eichel 3P 1+ SOG","Draisaitl 3P 1+ SOG"]},
+{id:"a16",type:"hockey",status:"active",event:"Germany @ USA",market:"SGP",pick:"Seider ATGS+Draisaitl/Seider/Boldy 3P SOG",odds:"+12559",wager:0.10,payout:12.66,gameId:"401845680",legs:["Seider ATGS","Draisaitl 3P 2+ SOG","Seider 3P 3+ SOG","Boldy 3P 2+ SOG"]},
+{id:"a17",type:"hockey",status:"active",event:"Germany @ USA",market:"SGP",pick:"Seider 2P Goal+Seider 3P 3+ SOG",odds:"+8457",wager:0.10,payout:8.56,gameId:"401845680",legs:["Seider 2P Goal","Seider 3P 3+ SOG"]},
+{id:"a18",type:"hockey",status:"active",event:"Germany @ USA",market:"60 Min Correct Score",pick:"USA 4-0",odds:"+1000",wager:0.10,payout:1.10,gameId:"401845680"},
+{id:"a19",type:"hockey",status:"active",event:"Germany @ USA",market:"60 Min Correct Score",pick:"USA 3-1",odds:"+1900",wager:0.10,payout:2.00,gameId:"401845680"},
+{id:"a20",type:"hockey",status:"active",event:"Germany @ USA",market:"60 Min Correct Score",pick:"USA 5-1",odds:"+1000",wager:0.10,payout:1.10,gameId:"401845680"},
+{id:"a21",type:"hockey",status:"active",event:"GER@USA + LAT@DEN",market:"4-Leg SGP+",pick:"Draisaitl SOG+3P Goal+Tralmaks 2+",odds:"+44350",wager:0.10,payout:44.45,legs:["Draisaitl 1P 2+ SOG","Draisaitl 2P 2+ SOG","Draisaitl 3P Goal","Tralmaks 2+ Goals (LAT@DEN)"]},
+
+// PENDING - Medal Futures
+{id:"p01",type:"medal",status:"pending",event:"Women's Slalom",market:"Medal",pick:"Martina Peterlini (ITA)",odds:"+6500",wager:0.10,payout:6.60,eventDate:"Tue 11:00am ET"},
+{id:"p02",type:"medal",status:"pending",event:"Women's Slalom",market:"Gold",pick:"Eliane Christen (SUI)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Tue 11:00am ET"},
+{id:"p03",type:"medal",status:"pending",event:"Women's Slalom",market:"Gold",pick:"Lara Della Mea (ITA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Tue 11:00am ET"},
+{id:"p04",type:"medal",status:"pending",event:"Women's Slalom",market:"Gold",pick:"Caitlin McFarlane (FRA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Tue 11:00am ET"},
+{id:"p05",type:"medal",status:"pending",event:"Women's Slalom",market:"Gold",pick:"Paula Moltzan (USA)",odds:"+1800",wager:0.10,payout:1.90,eventDate:"Tue 11:00am ET"},
+{id:"p06",type:"medal",status:"pending",event:"Women's Slopestyle",market:"Gold",pick:"Lily Dhawornvej (USA)",odds:"+6500",wager:0.16,payout:10.56,eventDate:"Tue 7:00am ET"},
+{id:"p07",type:"medal",status:"pending",event:"Women's Slopestyle",market:"Gold",pick:"Jessica Perlmutter (USA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Tue 7:00am ET"},
+{id:"p08",type:"medal",status:"pending",event:"2 Man Bobsleigh",market:"Gold",pick:"Cedric Follador (SUI)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Mon 4:00am ET"},
+{id:"p09",type:"medal",status:"pending",event:"2 Man Bobsleigh",market:"Gold",pick:"Patrick Baumgartner (ITA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Mon 4:00am ET"},
+{id:"p10",type:"medal",status:"pending",event:"Women's Monobob",market:"Gold",pick:"Simone De Silvestro (ITA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Mon 4:00am ET"},
+{id:"p11",type:"medal",status:"pending",event:"Women's Monobob",market:"Gold",pick:"Giada Andreutti (ITA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Mon 4:00am ET"},
+{id:"p12",type:"medal",status:"pending",event:"Women's Figure Skating",market:"Gold",pick:"Isabeau Levito (USA)",odds:"+3300",wager:0.10,payout:3.40,eventDate:"Tue 12:45pm ET"},
+{id:"p13",type:"medal",status:"pending",event:"Women's Figure Skating",market:"Gold",pick:"Anna Pezzetta (ITA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Tue 12:45pm ET"},
+{id:"p14",type:"medal",status:"pending",event:"Women's Figure Skating",market:"Gold",pick:"Lara Naki Gutmann (ITA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Tue 12:45pm ET"},
+{id:"p15",type:"medal",status:"pending",event:"Men's 1500m Speed Skating",market:"Gold",pick:"Daniele Di Stefano (ITA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Thu 10:30am ET"},
+{id:"p16",type:"medal",status:"pending",event:"Men's Nordic Combined",market:"Gold",pick:"Samuel Costa (ITA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Mon 3:00am ET"},
+{id:"p17",type:"medal",status:"pending",event:"Men's Slalom",market:"Gold",pick:"Tobias Kastlunger (ITA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Mon 11:00am ET"},
+{id:"p18",type:"medal",status:"pending",event:"Men's Slalom",market:"Gold",pick:"Benjamin Ritchie (USA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Mon 11:00am ET"},
+{id:"p19",type:"medal",status:"pending",event:"Women's Slalom",market:"Gold",pick:"Martina Peterlini (ITA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Tue 4:00am ET"},
+{id:"p20",type:"medal",status:"pending",event:"Women's Slopestyle",market:"Gold",pick:"Hahna Norman (USA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Tue 8:15am ET"},
+{id:"p21",type:"medal",status:"pending",event:"Women's Aerials",market:"Gold",pick:"Tasia Tanner (USA)",odds:"+6500",wager:0.10,payout:6.60,eventDate:"Tue 4:45am ET"},
+{id:"p22",type:"medal",status:"pending",event:"Women's Ski Cross",market:"Gold",pick:"Morgan Shute (USA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Fri 6:00am ET"},
+{id:"p23",type:"medal",status:"pending",event:"Men's Ski Cross",market:"Gold",pick:"Tyler Wallasch (USA)",odds:"+8000",wager:0.10,payout:8.10,eventDate:"Sat 4:00am ET"},
+{id:"p24",type:"medal",status:"pending",event:"Men's Aerials",market:"Gold",pick:"Derek Krueger (USA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Tue 7:30am ET"},
+{id:"p25",type:"medal",status:"pending",event:"Men's Big Air",market:"Gold",pick:"Miro Tabanelli (ITA)",odds:"+5000",wager:0.10,payout:5.10,eventDate:"Sat 1:30pm ET"},
+{id:"p26",type:"medal",status:"pending",event:"Men's Big Air",market:"Gold",pick:"Konnor Ralph (USA)",odds:"+5000",wager:0.10,payout:5.10,eventDate:"Sat 1:30pm ET"},
+{id:"p27",type:"medal",status:"pending",event:"Women's Biathlon Mass Start",market:"Gold",pick:"Lisa Theresa Hauser (AUT)",odds:"+6500",wager:0.10,payout:6.60,eventDate:"Sat 8:45am ET"},
+{id:"p28",type:"medal",status:"pending",event:"Women's Biathlon 4x6km Relay",market:"Gold",pick:"Slovakia",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Wed 8:45am ET"},
+{id:"p29",type:"medal",status:"pending",event:"Women's Biathlon 4x6km Relay",market:"Gold",pick:"Austria",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Wed 8:45am ET"},
+{id:"p30",type:"medal",status:"pending",event:"Women's Biathlon 4x6km Relay",market:"Gold",pick:"United States",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Wed 8:45am ET"},
+{id:"p31",type:"medal",status:"pending",event:"Women's Slalom",market:"Medal",pick:"Martina Peterlini (ITA)",odds:"+6500",wager:0.10,payout:6.60,eventDate:"Tue 4:00am ET"},
+{id:"p32",type:"medal",status:"pending",event:"Women's Slalom",market:"Gold",pick:"Martina Peterlini (ITA)",odds:"+10000",wager:0.10,payout:10.10,eventDate:"Tue 4:00am ET"},
+];
+
+// Load any user-added bets from localStorage
+try { const saved = localStorage.getItem("olympics_user_bets"); if (saved) BETS.push(...JSON.parse(saved)); } catch(e){}
+
+// ===== ESPN API =====
+const ESPN_M = "https://site.api.espn.com/apis/site/v2/sports/hockey/olympics-mens-ice-hockey";
+const ESPN_W = "https://site.api.espn.com/apis/site/v2/sports/hockey/olympics-womens-ice-hockey";
+let liveGames = {};
+
+async function fetchHockeyScores() {
+  try {
+    const [m, w] = await Promise.all([
+      fetch(ESPN_M+"/scoreboard").then(r=>r.json()).catch(()=>({events:[]})),
+      fetch(ESPN_W+"/scoreboard").then(r=>r.json()).catch(()=>({events:[]}))
+    ]);
+    [...(m.events||[]),...(w.events||[])].forEach(ev => {
+      const c = ev.competitions?.[0]; if(!c) return;
+      const g = {id:ev.id, name:ev.shortName, status:c.status?.type?.description||"Scheduled",
+        clock:c.status?.displayClock||"", period:c.status?.period||0, teams:{}};
+      (c.competitors||[]).forEach(t => {
+        g.teams[t.team?.abbreviation||"?"] = {score:parseInt(t.score||0), abbr:t.team?.abbreviation, name:t.team?.displayName};
+      });
+      liveGames[ev.id] = g;
+    });
+  } catch(e) { console.error("ESPN error:", e); }
+}
+
+// ===== STATE =====
+let activeFilter = "all";
+let expandedBets = new Set();
+let searchText = "";
+
+// ===== HELPERS =====
+function oddsNum(s) { return parseInt((s||"0").replace("+","").replace(",","")) || 0; }
+function getLegCount(b) { return b.legs ? b.legs.length : 0; }
+
+function getCardClass(b) {
+  if (b.status==="won") return "status-won";
+  if (b.status==="lost") return "status-lost";
+  return "type-"+b.type;
+}
+
+function getBadge(b) {
+  const m = {won:"badge-won",lost:"badge-lost",active:"badge-live",live:"badge-live",pending:"badge-pending"};
+  const l = {won:"WON",lost:"LOST",active:"LIVE",live:"LIVE",pending:"PENDING"};
+  return `<span class="badge ${m[b.status]||'badge-settled'}">${l[b.status]||'SETTLED'}</span>`;
+}
+
+function progressRingSVG(legs) {
+  if (!legs || !legs.length) return "";
+  const total = legs.length;
+  const r=14, circ=2*Math.PI*r;
+  // For now all pending; will update with live data
+  return `<svg class="progress-ring" viewBox="0 0 36 36">
+    <circle class="ring-bg" cx="18" cy="18" r="${r}"/>
+    <circle class="ring-fill" cx="18" cy="18" r="${r}" stroke-dasharray="${circ}" stroke-dashoffset="${circ}" transform="rotate(-90 18 18)"/>
+    <text class="ring-text" x="18" y="18">0/${total}</text>
+  </svg>`;
+}
+
+function renderLegsDetail(b) {
+  if (!b.legs || !b.legs.length) return "";
+  let html = '<div class="legs-list">';
+  b.legs.forEach(leg => {
+    let statusText, statusClass, fillClass, pct = 0;
+    if (b.status === "lost") {
+      statusText = "MISS"; statusClass = "ls-miss"; fillClass = "fill-cold"; pct = 0;
+    } else if (b.status === "won") {
+      statusText = "HIT ✓"; statusClass = "ls-hit"; fillClass = "fill-hit"; pct = 100;
+    } else if (b.status === "active" || b.status === "live") {
+      statusText = "IN PLAY"; statusClass = "ls-live"; fillClass = "fill-live"; pct = 0;
+    } else {
+      statusText = "AWAITING"; statusClass = "ls-pending"; fillClass = "fill-pending"; pct = 0;
+    }
+    html += `<div class="leg-row">
+      <span class="leg-name">${leg}</span>
+      <span class="leg-status-text ${statusClass}">${statusText}</span>
+      <div class="leg-progress-bar"><div class="leg-progress-fill ${fillClass}" style="width:${pct}%"></div></div>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+function getGameWidget(b) {
+  if (!b.gameId || !liveGames[b.gameId]) return "";
+  const g = liveGames[b.gameId];
+  const abbrs = Object.keys(g.teams);
+  if (abbrs.length < 2) return "";
+  const t1 = g.teams[abbrs[0]], t2 = g.teams[abbrs[1]];
+  const statusLabel = g.status === "In Progress" ? "LIVE" : g.status;
+  return `<div class="game-score">
+    <div class="team-score"><div class="name">${t1.abbr}</div><div class="score">${t1.score}</div></div>
+    <div class="game-info">
+      <div class="game-status-text">${statusLabel}</div>
+      ${g.clock ? `<div class="game-clock">${g.clock} P${g.period}</div>` : ""}
+    </div>
+    <div class="team-score"><div class="name">${t2.abbr}</div><div class="score">${t2.score}</div></div>
+  </div>`;
+}
+
+// ===== FILTER & SORT =====
+function filterBets() {
+  let list = [...BETS];
+  // Text search
+  if (searchText) {
+    const q = searchText.toLowerCase();
+    list = list.filter(b => (b.pick+b.event+b.market+(b.legs||[]).join(" ")).toLowerCase().includes(q));
+  }
+  // Tab filter
+  if (activeFilter !== "all") {
+    list = list.filter(b => {
+      if (activeFilter === "hockey") return b.type === "hockey";
+      if (activeFilter === "medal") return b.type === "medal";
+      if (activeFilter === "active") return b.status === "active" || b.status === "live";
+      if (activeFilter === "pending") return b.status === "pending";
+      if (activeFilter === "settled") return b.status === "lost" || b.status === "won";
+      if (activeFilter === "won") return b.status === "won";
+      if (activeFilter === "lost") return b.status === "lost";
+      return true;
+    });
+  }
+  // Sort
+  const sort = document.getElementById("sortSelect").value;
+  const order = {active:0, live:0, pending:1, won:2, lost:3};
+  if (sort === "status") list.sort((a,b) => (order[a.status]??2)-(order[b.status]??2));
+  else if (sort === "payout-desc") list.sort((a,b) => b.payout-a.payout);
+  else if (sort === "payout-asc") list.sort((a,b) => a.payout-b.payout);
+  else if (sort === "odds-desc") list.sort((a,b) => oddsNum(b.odds)-oddsNum(a.odds));
+  else if (sort === "odds-asc") list.sort((a,b) => oddsNum(a.odds)-oddsNum(b.odds));
+  else if (sort === "wager-desc") list.sort((a,b) => b.wager-a.wager);
+  else if (sort === "legs-desc") list.sort((a,b) => getLegCount(b)-getLegCount(a));
+  else if (sort === "legs-pct") list.sort((a,b) => getLegCount(b)-getLegCount(a)); // placeholder
+  return list;
+}
+
+function applyFilters() {
+  searchText = document.getElementById("searchBox").value;
+  renderBets();
+}
+
+// ===== RENDER =====
+function renderSummary() {
+  const total = BETS.length;
+  const won = BETS.filter(b=>b.status==="won").length;
+  const lost = BETS.filter(b=>b.status==="lost").length;
+  const active = BETS.filter(b=>b.status==="active"||b.status==="live").length;
+  const pending = BETS.filter(b=>b.status==="pending").length;
+  const wagered = BETS.reduce((s,b)=>s+b.wager,0);
+  const returned = BETS.filter(b=>b.status==="won").reduce((s,b)=>s+b.payout,0);
+  const potential = BETS.filter(b=>b.status!=="lost"&&b.status!=="won").reduce((s,b)=>s+b.payout,0);
+  const dream = BETS.filter(b=>b.status!=="lost").reduce((s,b)=>s+b.payout,0);
+  document.getElementById("summary").innerHTML = `
+    <div class="stat-card"><div class="val">${total}</div><div class="lbl">Total Bets</div></div>
+    <div class="stat-card"><div class="val v-live">${active}</div><div class="lbl">Live</div></div>
+    <div class="stat-card"><div class="val v-blue">${pending}</div><div class="lbl">Pending</div></div>
+    <div class="stat-card"><div class="val v-red">${lost}</div><div class="lbl">Lost</div></div>
+    <div class="stat-card"><div class="val v-green">${won}</div><div class="lbl">Won</div></div>
+    <div class="stat-card"><div class="val">$${wagered.toFixed(2)}</div><div class="lbl">Wagered</div></div>
+    <div class="stat-card"><div class="val v-gold">$${potential.toFixed(2)}</div><div class="lbl">Potential</div></div>
+    <div class="stat-card"><div class="val v-green">$${returned.toFixed(2)}</div><div class="lbl">Returned</div></div>
+  `;
+}
+
+function renderBets() {
+  const filtered = filterBets();
+  document.getElementById("betCount").textContent = `Showing ${filtered.length} of ${BETS.length} bets`;
+
+  if (!filtered.length) {
+    document.getElementById("betsGrid").innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px">No bets match this filter</div>';
+    return;
+  }
+
+  let html = "";
+  filtered.forEach(b => {
+    const exp = expandedBets.has(b.id);
+    const hasLegs = b.legs && b.legs.length > 0;
+    html += `<div class="bet-card ${getCardClass(b)} ${exp?"expanded":""}" data-id="${b.id}">
+      <div class="bet-header" onclick="toggleBet('${b.id}')">
+        ${hasLegs ? progressRingSVG(b.legs) : ""}
+        <div class="bet-left">
+          <div class="bet-title">${b.pick}</div>
+          <div class="bet-meta">
+            <span>${b.event}</span>
+            <span>${b.market}</span>
+            ${b.eventDate ? `<span>📅 ${b.eventDate}</span>` : ""}
+            ${getBadge(b)}
+          </div>
+        </div>
+        <div class="bet-right">
+          <div class="bet-odds">${b.odds}</div>
+          <div class="bet-payout">$${b.wager.toFixed(2)} → $${b.payout.toFixed(2)}</div>
+        </div>
+      </div>
+      <div class="bet-detail">
+        ${getGameWidget(b)}
+        ${renderLegsDetail(b)}
+        ${b.result ? `<div style="margin-top:8px;font-size:.8em;color:var(--text2)">Result: ${b.result}</div>` : ""}
+      </div>
+    </div>`;
+  });
+
+  document.getElementById("betsGrid").innerHTML = html;
+}
+
+function toggleBet(id) {
+  expandedBets.has(id) ? expandedBets.delete(id) : expandedBets.add(id);
+  renderBets();
+}
+function expandAll() { BETS.forEach(b => expandedBets.add(b.id)); renderBets(); }
+function collapseAll() { expandedBets.clear(); renderBets(); }
+
+function resetAll() {
+  activeFilter = "all";
+  searchText = "";
+  document.getElementById("searchBox").value = "";
+  document.getElementById("sortSelect").value = "status";
+  expandedBets.clear();
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.querySelector('[data-filter="all"]').classList.add("active");
+  renderSummary(); renderBets();
+}
+
+// ===== REFRESH =====
+async function refreshData() {
+  const btn = document.getElementById("refreshBtn");
+  btn.classList.add("loading");
+  btn.innerHTML = '<span class="spin">↻</span> REFRESHING...';
+  await fetchHockeyScores();
+  // Update active hockey bets with live data
+  BETS.forEach(b => {
+    if (b.gameId && liveGames[b.gameId]) {
+      const g = liveGames[b.gameId];
+      if (g.status === "Final" && (b.status === "active" || b.status === "live")) {
+        b.status = "lost"; // Default lost; override manually for wins
+        const t = Object.values(g.teams);
+        b.result = `${t[0]?.abbr} ${t[0]?.score}–${t[1]?.score} ${t[1]?.abbr}`;
+      }
+    }
+  });
+  renderSummary(); renderBets();
+  const now = new Date();
+  document.getElementById("lastUpdated").textContent = `Last updated: ${now.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/New_York"})} ET`;
+  btn.classList.remove("loading");
+  btn.innerHTML = '<span>↻</span> REFRESH';
+}
+
+// ===== ADD BET =====
+function showAddModal() { document.getElementById("addModal").classList.add("show"); }
+function hideAddModal() { document.getElementById("addModal").classList.remove("show"); }
+function saveBet() {
+  const evt = document.getElementById("newEvent").value.trim();
+  const type = document.getElementById("newType").value;
+  const market = document.getElementById("newMarket").value.trim();
+  const pick = document.getElementById("newPick").value.trim();
+  const odds = document.getElementById("newOdds").value.trim();
+  const wager = parseFloat(document.getElementById("newWager").value) || 0.10;
+  const legsText = document.getElementById("newLegs").value.trim();
+  const eventDate = document.getElementById("newDate").value.trim();
+  if (!evt || !pick || !odds) { alert("Event, Pick, and Odds are required"); return; }
+  const oddsVal = oddsNum(odds);
+  const payout = wager * (1 + oddsVal / 100);
+  const newBet = {
+    id: "u" + Date.now(),
+    type, status: "pending", event: evt, market: market || "Custom",
+    pick, odds: odds.startsWith("+") ? odds : "+"+odds,
+    wager, payout: parseFloat(payout.toFixed(2)),
+    eventDate: eventDate || undefined,
+    legs: legsText ? legsText.split("\n").filter(l=>l.trim()) : undefined
+  };
+  BETS.push(newBet);
+  // Save user bets to localStorage
+  try {
+    const userBets = BETS.filter(b => b.id.startsWith("u"));
+    localStorage.setItem("olympics_user_bets", JSON.stringify(userBets));
+  } catch(e){}
+  hideAddModal();
+  // Clear form
+  ["newEvent","newMarket","newPick","newOdds","newLegs","newDate"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("newWager").value = "0.10";
+  renderSummary(); renderBets();
+}
+
+// ===== TAB HANDLERS =====
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    activeFilter = btn.dataset.filter;
+    renderBets();
+  });
+});
+
+// ===== INIT =====
+(async function() {
+  await fetchHockeyScores();
+  renderSummary(); renderBets();
+  const now = new Date();
+  document.getElementById("lastUpdated").textContent = `Last updated: ${now.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/New_York"})} ET`;
+})();
+</script>
+</body>
+</html>
